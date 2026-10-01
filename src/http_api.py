@@ -84,16 +84,49 @@ def make_handler(service: Service, static_dir: str):
                     actor, role = self._identity()
                     del actor
                     self._json(200, {"items": service.list_items(role)})
+                elif path == "/api/instruments":
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"instruments": service.list_instruments(role)})
+                elif path == "/api/recalc-batches":
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"batches": service.list_recalc_batches(role)})
+                elif path == "/api/todos":
+                    actor, role = self._identity()
+                    del actor
+                    status = parse_qs(urlparse(self.path).query).get("status", [None])[0]
+                    self._json(200, {"todos": service.list_todos(role, status=status)})
                 elif path.startswith("/api/items/") and path.endswith("/records"):
                     item_id = int(path.split("/")[3])
                     actor, role = self._identity()
                     del actor
                     self._json(200, {"records": service.list_records(item_id, role)})
+                elif path.startswith("/api/items/") and path.endswith("/revisions"):
+                    item_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"revisions": service.revisions(item_id, role)})
                 elif path.startswith("/api/items/"):
                     item_id = int(path.rsplit("/", 1)[-1])
                     actor, role = self._identity()
                     del actor
                     self._json(200, service.get_item(item_id, role))
+                elif path.startswith("/api/instruments/") and path.endswith("/certificates"):
+                    instrument_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"certificates": service.list_certificates(instrument_id, role)})
+                elif path.startswith("/api/instruments/") and path.endswith("/readings"):
+                    instrument_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, {"readings": service.list_readings(instrument_id, role)})
+                elif path.startswith("/api/recalc-batches/"):
+                    batch_id = int(path.split("/")[3])
+                    actor, role = self._identity()
+                    del actor
+                    self._json(200, service.get_recalc_batch(batch_id, role))
                 elif path == "/api/audit":
                     actor, role = self._identity()
                     del actor
@@ -110,6 +143,12 @@ def make_handler(service: Service, static_dir: str):
                 body = self._body()
                 if path == "/api/items":
                     self._json(201, service.create_item(body, actor, role))
+                elif path == "/api/instruments":
+                    self._json(201, service.create_instrument(body, actor, role))
+                elif path == "/api/recalc-batches":
+                    self._json(201, service.create_recalc_batch(body, actor, role))
+                elif path == "/api/baselines/upgrade":
+                    self._json(200, service.upgrade_baselines(actor, role))
                 elif path.startswith("/api/items/") and path.endswith("/records"):
                     item_id = int(path.split("/")[3])
                     self._json(201, service.add_record(item_id, body, actor, role))
@@ -119,6 +158,18 @@ def make_handler(service: Service, static_dir: str):
                     expected = body.get("expected_version")
                     self._json(200, service.transition(
                         item_id, target, expected, actor, role))
+                elif path.startswith("/api/instruments/") and path.endswith("/certificates"):
+                    instrument_id = int(path.split("/")[3])
+                    self._json(201, service.issue_certificate(instrument_id, body, actor, role))
+                elif path.startswith("/api/instruments/") and path.endswith("/readings"):
+                    instrument_id = int(path.split("/")[3])
+                    self._json(201, service.add_reading(instrument_id, body, actor, role))
+                elif path.startswith("/api/recalc-batches/") and path.endswith("/retry"):
+                    batch_id = int(path.split("/")[3])
+                    self._json(200, service.retry_recalc_batch(batch_id, actor, role))
+                elif path.startswith("/api/todos/") and path.endswith("/done"):
+                    todo_id = int(path.split("/")[3])
+                    self._json(200, service.close_todo(todo_id, actor, role))
                 else:
                     self._json(404, {"error": "not_found"})
             except Exception as exc:

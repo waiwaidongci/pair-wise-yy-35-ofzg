@@ -20,3 +20,32 @@ def validate_transition(current,target):
     if not can_transition(current,target): raise ConflictError(f"不能从{current}转换到{target}")
 def completion_blockers(target,open_records): return ["仍有未关闭事项"] if target in TERMINAL_STATES and open_records>0 else []
 def role_for_transition(target): return set(TRANSITION_ROLES.get(target,[]))
+
+# 修订链：仪器证书 / 原始读数 / 剂量事件
+ENTITY_INSTRUMENT='仪器'; ENTITY_CERTIFICATE='校准证书'; ENTITY_READING='原始读数'; ENTITY_BATCH='重算批次'; ENTITY_TODO='待办'
+TODO_KINDS=['investigation','follow_up','deadline','conclusion_invalid']
+TODO_STATUS=['open','done']
+BATCH_ITEM_STATUS=['pending','running','completed','failed','skipped']
+BATCH_STATUS=['running','completed','failed']
+REVISION_REASONS=['initial','certificate_reissue','historical_baseline','reading_added']
+INSTRUMENT_WRITE_ROLES=set(['radiation_officer','health_physicist'])
+CERTIFICATE_WRITE_ROLES=set(['radiation_officer','health_physicist'])
+READING_WRITE_ROLES=set(['dosimetrist','radiation_officer','health_physicist'])
+RECALC_ROLES=set(['radiation_officer','health_physicist'])
+TODO_CLOSE_ROLES=set(['radiation_officer','health_physicist'])
+BASELINE_UPGRADE_ROLES=set(['radiation_officer','health_physicist'])
+CONCLUDED_STATES=set(['investigation','follow_up','closed'])
+EPSILON=1e-9
+def validate_certificate_interval(effective_from,effective_to):
+    if not isinstance(effective_from,str) or not effective_from.strip(): raise ValidationError("生效区间起始不能为空")
+    if effective_to is not None and (not isinstance(effective_to,str) or effective_to<=effective_from):
+        raise ValidationError("生效区间结束必须晚于起始")
+    return effective_from, effective_to
+def validate_coefficient(coefficient):
+    if isinstance(coefficient,bool): raise ValidationError("校准系数必须是数字")
+    try: value=float(coefficient)
+    except (TypeError,ValueError): raise ValidationError("校准系数必须是数字")
+    if value<=0: raise ValidationError("校准系数必须大于0")
+    return value
+def todo_kind_label(kind):
+    return {'investigation':'调查重估','follow_up':'医学随访重估','deadline':'报告期限变更','conclusion_invalid':'旧结论失效'}[kind]
